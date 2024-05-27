@@ -61,10 +61,6 @@ COPY docker-setup/windranger.tar.gz /fuzzer/windranger.tar.gz
 COPY docker-setup/setup_WindRanger.sh /fuzzer/setup_WindRanger.sh
 RUN ./setup_WindRanger.sh
 
-COPY docker-setup/Beacon-binaries /fuzzer/Beacon
-COPY docker-setup/setup_Beacon.sh /fuzzer/setup_Beacon.sh
-RUN ./setup_Beacon.sh
-
 
 # Create a benchmark directory and start working there.
 RUN mkdir -p /benchmark/bin && \
@@ -83,16 +79,14 @@ COPY docker-setup/build_bench_ASAN.sh /benchmark/build_bench_ASAN.sh
 RUN ./build_bench_ASAN.sh
 COPY docker-setup/build_bench_AFL.sh /benchmark/build_bench_AFL.sh
 RUN ./build_bench_AFL.sh
-COPY docker-setup/build_bench_AFLGo.sh /benchmark/build_bench_AFLGo.sh
-COPY docker-setup/target/stack-trace /benchmark/target/stack-trace
-RUN ./build_bench_AFLGo.sh
+# COPY docker-setup/build_bench_AFLGo.sh /benchmark/build_bench_AFLGo.sh
+# COPY docker-setup/target/stack-trace /benchmark/target/stack-trace
+# RUN ./build_bench_AFLGo.sh
 
 # Build benchmark with Beacon and WindRanger.
 COPY docker-setup/target/line /benchmark/target/line
 COPY docker-setup/build_bench_WindRanger.sh /benchmark/build_bench_WindRanger.sh
 RUN ./build_bench_WindRanger.sh
-COPY docker-setup/build_bench_Beacon.sh /benchmark/build_bench_Beacon.sh
-RUN ./build_bench_Beacon.sh
 
 # Run smake on bechmarks to prepare input for sparrow
 COPY docker-setup/patches /benchmark/patches
@@ -113,7 +107,6 @@ COPY scripts/common.py /benchmark/scripts
 COPY scripts/triage.py /benchmark/scripts
 COPY scripts/run_sparrow.py /benchmark/scripts
 RUN python3 /benchmark/scripts/run_sparrow.py all thin
-RUN python3 /benchmark/scripts/run_sparrow.py all naive
 
 # Setup DAFL.
 WORKDIR /fuzzer
@@ -125,27 +118,17 @@ WORKDIR /benchmark
 COPY docker-setup/build_bench_DAFL.sh /benchmark/build_bench_DAFL.sh
 RUN ./build_bench_DAFL.sh
 
-# Build DAFL with no ASAN options to compare with Beacon
-COPY docker-setup/build_bench_DAFL_noasan.sh /benchmark/build_bench_DAFL_noasan.sh
-RUN ./build_bench_DAFL_noasan.sh
-
-# Build benchmarks with DAFL_select, DAFL_schedule, and DAFL_naive.
-COPY docker-setup/build_bench_DAFL_selIns.sh /benchmark/build_bench_DAFL_selIns.sh
-RUN ./build_bench_DAFL_selIns.sh
-COPY docker-setup/build_bench_DAFL_semRel.sh /benchmark/build_bench_DAFL_semRel.sh
-RUN ./build_bench_DAFL_semRel.sh
-COPY docker-setup/build_bench_DAFL_naive.sh /benchmark/build_bench_DAFL_naive.sh
-RUN ./build_bench_DAFL_naive.sh
-
-
-# Build benchmarks with DAFL_energy.
+# Setup Logger.
 WORKDIR /fuzzer
-COPY docker-setup/setup_DAFL_energy.sh /fuzzer/setup_DAFL_energy.sh
-RUN ./setup_DAFL_energy.sh
+COPY Logger /fuzzer/Logger
+COPY docker-setup/setup_Logger.sh /fuzzer/setup_Logger.sh
+RUN ./setup_Logger.sh
 
+# Build benchmarks with Logger.
 WORKDIR /benchmark
-COPY docker-setup/build_bench_DAFL_energy.sh /benchmark/build_bench_DAFL_energy.sh
-RUN ./build_bench_DAFL_energy.sh 
+COPY docker-setup/build_bench_Logger.sh /benchmark/build_bench_Logger.sh
+RUN ./build_bench_Logger.sh
+
 
 # Copy script for debugging.
 COPY docker-setup/parse_build_log.py /benchmark/

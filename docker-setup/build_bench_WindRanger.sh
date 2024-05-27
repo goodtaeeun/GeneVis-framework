@@ -84,8 +84,6 @@ build_with_WindRanger "binutils-2.27" "/fuzzer/WindRanger/fuzz/afl-clang-fast" "
     "strip 2017-7303" &
 build_with_WindRanger "binutils-2.29" "/fuzzer/WindRanger/fuzz/afl-clang-fast" "-ldl -fsanitize=address" \
     "nm 2017-14940" &
-build_with_WindRanger "libxml2-2.9.4" "/fuzzer/WindRanger/fuzz/afl-clang-fast" "-lm -lz" \
-    "xmllint 2017-5969 2017-9047 2017-9048" &
 # For libjpeg, we should also pass .a file as input, too.
 build_with_WindRanger "libjpeg-1.5.90" "/fuzzer/WindRanger/fuzz/afl-clang-fast" "../RUNDIR-libjpeg-1.5.90/libjpeg-turbo-1.5.90/libjpeg.a" \
     "cjpeg-1.5.90 2018-14498" &

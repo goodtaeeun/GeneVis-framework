@@ -1,7 +1,7 @@
 import subprocess
 
+# TODO: Move to a separate file for configuration.
 MAX_INSTANCE_NUM = 40
-MEM_PER_INSTANCE = 4  # GB
 
 
 def run_cmd(cmd_str):

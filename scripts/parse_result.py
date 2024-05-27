@@ -1,5 +1,6 @@
 import sys, os
 import pandas as pd
+import re
 from benchmark import check_targeted_crash
 from benchmark import FUZZ_TARGETS
 SCRIPT_PATH=os.path.dirname(os.path.realpath(__file__))
@@ -9,6 +10,11 @@ FUZZ_LOG_FILE = "fuzzer_stats"
 REPLAY_ITEM_SIG = "Replaying crash - "
 ADDITIONAL_INFO_SIG = " is located "
 FOUND_TIME_SIG = "found at "
+
+ID_RE = r'id:(\d{6})'
+CRACH_FULL_RE = r'Replaying crash - (.*) \(found at'
+REP_RE = r'rep:(\d+)'
+PARENT_RE = r'src:([^,]+)'
 
 
 def replace_none(tte_list, timeout):
@@ -74,11 +80,12 @@ def get_experiment_info(outdir):
     return (targ_list, iter_cnt)
 
 
-def parse_tte(targ, targ_dir):
+def identify_crashes(targ, targ_dir):
     log_file = os.path.join(targ_dir, REPLAY_LOG_FILE)
     f = open(log_file, "r", encoding="latin-1")
     buf = f.read()
     f.close()
+    target_crashes = {}
     while REPLAY_ITEM_SIG in buf:
         # Proceed to the next item.
         start_idx = buf.find(REPLAY_ITEM_SIG)
@@ -94,11 +101,22 @@ def parse_tte(targ, targ_dir):
             remove_idx = buf.find(ADDITIONAL_INFO_SIG)
             replay_buf = replay_buf[:remove_idx]
         if check_targeted_crash(targ, replay_buf):
+            crash_full_name = re.search(CRASH_FULL_RE, replay_buf).group(1)
+            crash_id = re.search(ID_RE, replay_buf).group(1)
+            reps = re.search(REP_RE, replay_buf).group(1)
+            mutation_string = f'{reps} operations overlapped'
+            parents = re.search(PARENT_RE, replay_buf).group(1)
+            if "+" in parents:
+                parents = parents.split("+")
+            else:
+                parents = [parents]
             found_time = int(replay_buf.split(FOUND_TIME_SIG)[1].split()[0])
-            return found_time
-    # If not found, return a high value to indicate timeout. When computing the
-    # median value, should confirm that such timeouts are not more than a half.
-    return None
+            target_crashes[crash_id] = {
+                "full_name": crash_full_name,
+                "found_time": found_time,
+                "parents": parents,
+                "mutation": mutation_string}
+    return target_crashes
 
 def read_sa_results():
     df = pd.read_csv(os.path.join(SCRIPT_PATH,"..",'sa_overhead.csv'))
@@ -140,35 +158,6 @@ def analyze_targ_result(outdir, timeout, targ, iter_cnt):
     print("Timeout iterations: %s" % timeout_list)
     print("------------------------------------------------------------------")
 
-def print_result(outdir, exp_id, targ_list, timeout, iter_cnt, tools):
-    df_dict = {}
-    df_dict["Target"] = targ_list
-
-    sa_dict = read_sa_results()
-    for tool in tools:
-        med_tte_list = []
-        for targ in targ_list:
-            tte_list = []
-            for iter_id in range(iter_cnt):
-                targ_dir = os.path.join(outdir, tool, "%s-iter-%d" % (targ, iter_id))
-                tte = parse_tte(targ, targ_dir)
-                tte_list.append(tte)
-            med_tte = median_tte(tte_list, timeout)
-            if ">" in med_tte:
-                found_iter_cnt = iter_cnt - len([x for x in tte_list if (x is None or x > timeout)])
-                med_tte = "N.A.(%d/%d)" % (found_iter_cnt, iter_cnt)
-            else:
-                if tool in sa_dict:
-                    med_tte = str( int(med_tte) + sa_dict[tool][targ] )
-                elif "DAFL" in tool:
-                    med_tte = str( int(med_tte) + sa_dict["DAFL"][targ] )
-            
-            med_tte_list.append(med_tte)
-        df_dict[tool] = med_tte_list
-    
-    tte_df = pd.DataFrame.from_dict(df_dict)
-    tte_df.to_csv(os.path.join(outdir, "%s.csv" % exp_id), index=False)
-    tte_df.to_csv(os.path.join(outdir, "%s.tsv" % exp_id), index=False, sep="\t")
 
 def main():
     if len(sys.argv) not in [2, 3]:
