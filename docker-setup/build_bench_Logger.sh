@@ -19,10 +19,12 @@ function build_with_Logger() {
             BIT_OPT=""
         fi
 
-        build_target $1 $CC $CXX "-fsanitize=address $BIT_OPT"
-
         for BUG_NAME in "${str_array[@]:1}"; do
+            export DAFL_TARGET_FILE="/benchmark/target/logger/$BIN_NAME/$BUG_NAME"
+            build_target $1 $CC $CXX "-fsanitize=address $BIT_OPT"
+            ### copy results
             copy_build_result $1 $BIN_NAME $BUG_NAME "Logger"
+            rm -rf RUNDIR-$1
         done
     done
 
@@ -37,7 +39,7 @@ build_with_Logger "libming-4.7" \
     "swftophp-4.7 2016-9827 2016-9829 2016-9831 2017-9988 2017-11728 2017-11729" &
 build_with_Logger "libming-4.7.1" "swftophp-4.7.1 2017-7578" &
 build_with_Logger "libming-4.8" \
-    "swftophp-4.8 2018-7868 2018-8807 2018-8962 2018-11095 2018-11225 2018-11226 2018-20427 2019-12982 2020-6628" &
+    "swftophp-4.8 2018-7868 2018-8807 2018-8962 2018-11095 2018-11225 2018-20427 2019-12982" &
 build_with_Logger "libming-4.8.1" "swftophp-4.8.1 2019-9114" &
 build_with_Logger "lrzip-9de7ccb" "" "lrzip-9de7ccb 2017-8846" &
 build_with_Logger "lrzip-ed51e14" "lrzip-ed51e14 2018-11496" &

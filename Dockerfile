@@ -126,6 +126,7 @@ RUN ./setup_Logger.sh
 
 # Build benchmarks with Logger.
 WORKDIR /benchmark
+COPY docker-setup/target/logger /benchmark/target/logger
 COPY docker-setup/build_bench_Logger.sh /benchmark/build_bench_Logger.sh
 RUN ./build_bench_Logger.sh
 

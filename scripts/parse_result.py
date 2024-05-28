@@ -12,7 +12,7 @@ ADDITIONAL_INFO_SIG = " is located "
 FOUND_TIME_SIG = "found at "
 
 ID_RE = r'id:(\d{6})'
-CRACH_FULL_RE = r'Replaying crash - (.*) \(found at'
+CRASH_FULL_RE = r'(id:[^ ]+) \(found at'
 REP_RE = r'rep:(\d+)'
 PARENT_RE = r'src:([^,]+)'
 
@@ -110,6 +110,8 @@ def identify_crashes(targ, targ_dir):
                 parents = parents.split("+")
             else:
                 parents = [parents]
+
+            parents = [int(p) for p in parents]
             found_time = int(replay_buf.split(FOUND_TIME_SIG)[1].split()[0])
             target_crashes[crash_id] = {
                 "full_name": crash_full_name,

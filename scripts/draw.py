@@ -3,6 +3,11 @@ import sys
 import re
 import difflib
 import json
+import shutil
+from parse_result import *
+
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+BASE_DIR = os.path.dirname(SCRIPT_DIR)
 
 ID_RE = r'id:(\d{6})'
 PARENT_RE = r'src:([^,]+)'
@@ -12,7 +17,6 @@ SEED_FULL_RE = r'Seed - (.*) \(found at'
 
 seeds = {}
 crashes = {}
-covered_lines = set()
 
 def read_and_parse_seeds(indir):
     
@@ -35,6 +39,8 @@ def read_and_parse_seeds(indir):
                     parents = parents.split("+")
                 else:
                     parents = [parents]
+
+                parents = [int(parent) for parent in parents]
 
                 reps = re.search(REP_RE, line).group(1)
                 mutation_string = f'{reps} operations overlapped'
@@ -71,8 +77,11 @@ def read_and_parse_seeds(indir):
         seed_id, found_time = seed
         seeds[seed_id]["found_time"] = found_time
 
-def read_and_parse_seeds(indir,target):
-    crashes = identify_crashes(target,indir)
+def read_and_parse_crashes(indir,target):
+    imported_crashes = identify_crashes(target,indir)
+    for crash in imported_crashes:
+        crashes[crash] = imported_crashes[crash]
+
     
 
 
@@ -123,6 +132,69 @@ def calculate_found_time_delta():
             print("Crash %d has more than 2 parents" % crash_id)
             crashes[crash]["time_delta"] = -1
 
+def format_hexdump(hex_str, width=16):
+    hex_lines = []
+    for i in range(0, len(hex_str), width * 2):  # width * 2 because each byte is represented by two hex characters
+        chunk = hex_str[i:i + width * 2]
+        hex_chunk = ' '.join(chunk[j:j+2] for j in range(0, len(chunk), 2))
+        hex_lines.append(hex_chunk)
+    return hex_lines
+
+# def format_diff(diff):
+#     formatted_lines = []
+#     for line in diff:
+#         if line.startswith('---') or line.startswith('+++'):
+#             formatted_lines.append(line)
+#         elif line.startswith('@@'):
+#             formatted_lines.append(line)
+#         else:
+#             # For context and change lines, format hex pairs with spaces for readability
+#             prefix = line[0]
+#             hex_pairs = ' '.join(line[1:][i:i+2] for i in range(0, len(line[1:]), 2))
+#             formatted_lines.append(f'{prefix} {hex_pairs}')
+#     return '\n'.join(formatted_lines)
+
+def format_diff(diff):
+    formatted_lines = []
+    current_addition = []
+    current_deletion = []
+
+    for line in diff:
+        if line.startswith('---') or line.startswith('+++') or line.startswith('@@'):
+            if current_addition:
+                formatted_lines.append('+' + ' '.join(current_addition))
+                current_addition = []
+            if current_deletion:
+                formatted_lines.append('-' + ' '.join(current_deletion))
+                current_deletion = []
+            formatted_lines.append(line)
+        elif line.startswith('+'):
+            if current_deletion:
+                formatted_lines.append('-' + ' '.join(current_deletion))
+                current_deletion = []
+            current_addition.append(line[1:])
+        elif line.startswith('-'):
+            if current_addition:
+                formatted_lines.append('+' + ' '.join(current_addition))
+                current_addition = []
+            current_deletion.append(line[1:])
+        else:
+            if current_addition:
+                formatted_lines.append('+' + ' '.join(current_addition))
+                current_addition = []
+            if current_deletion:
+                formatted_lines.append('-' + ' '.join(current_deletion))
+                current_deletion = []
+            formatted_lines.append(' ' + line)
+    
+    if current_addition:
+        formatted_lines.append('+' + ' '.join(current_addition))
+    if current_deletion:
+        formatted_lines.append('-' + ' '.join(current_deletion))
+
+    return '\n'.join(formatted_lines)
+
+
 def calculate_mutation_delta(indir):
     for seed in seeds:
         parents = seeds[seed]["parents"]
@@ -148,7 +220,12 @@ def calculate_mutation_delta(indir):
         [parent_hex[i:i+2] for i in range(0, len(parent_hex), 2)],
         lineterm=''
         )
-        seeds[seed]["mutation_delta"] = '\n'.join(diff)
+        
+        formatted_diff = format_diff(diff)
+        print("====================================")
+        print(seed)
+        print(formatted_diff)
+        seeds[seed]["mutation_delta"] = formatted_diff
 
     for crash in crashes:
         parents = crashes[crash]["parents"]
@@ -174,27 +251,52 @@ def calculate_mutation_delta(indir):
         [parent_hex[i:i+2] for i in range(0, len(parent_hex), 2)],
         lineterm=''
         )
-        crashes[crash]["mutation_delta"] = '\n'.join(diff)
+                
+        formatted_diff = format_diff(diff)
+        # print(formatted_diff)
+        crashes[crash]["mutation_delta"] = formatted_diff
 
         
 def calculate_coverage(indir):
     for seed in seeds:
-        new_coverage = set()
         f_name = seeds[seed]["full_name"]
         f_path = os.path.join(indir, "coverage", f_name)
-        f = open(f_path, "rb")
+        f = open(f_path, "r")
         covered_by_seed = f.read().splitlines()
 
+        line_covered = False
+        function_covered = False
         for line in covered_by_seed:
-            if "Line : " in line:
-                covered_line = line.split("Line : ")[1]
-                if covered_line not in covered_lines:
-                    covered_lines.add(covered_line)
-                    new_coverage.add(covered_line)
-        seeds[seed]["new_coverage"] = new_coverage
+            if "[LINE]" in line:
+                line_covered = True
+            elif "[FUNCTION]" in line:
+                function_covered = True
+        cov_info = ""
+        if function_covered:
+            cov_info += "Covered target function"
+        if line_covered:
+            cov_info += ", Covered target line"
+        
+        seeds[seed]["coverage"] = cov_info
 
 
-def generate_json(indir):
+def generate_vis_dir(indir):
+    # the base directory for the visualization files
+    indir_name = os.path.basename(indir)
+
+    # the output directory
+    outdir = os.path.join(BASE_DIR, "output", indir_name + "-vis")
+    
+
+    if os.path.exists(outdir):
+        shutil.rmtree(outdir)
+
+    template_dir = os.path.join(BASE_DIR, "vis_template")
+    shutil.copytree(template_dir, outdir)
+
+    return outdir
+
+def generate_json(outdir):
     ## First, generate the dictionary that defines the structure of the graph
     graph_dict = {
         "nodes": [],
@@ -211,7 +313,7 @@ def generate_json(indir):
         for parent in crashes[crash]["parents"]:
             graph_dict["edges"].append((str(parent), "Crash: " + crash))
 
-    json_file = open(os.path.join(indir, "seed_graph.json"), "w")
+    json_file = open(os.path.join(outdir, "seed_graph.json"), "w")
     json.dump(graph_dict, json_file)
 
     ## Second, generate the dictionary that defines the metadata of each node.
@@ -224,32 +326,47 @@ def generate_json(indir):
             "found_time": seeds[seed]["found_time"],
             "parents": seeds[seed]["parents"],
             "time_delta": seeds[seed]["time_delta"],
+            "mutation": seeds[seed]["mutation"],
             "mutation_delta": seeds[seed]["mutation_delta"],
-            "new_coverage": seeds[seed]["new_coverage"]
+            "coverage": seeds[seed]["coverage"]
         }
     for crash in crashes:
         metadata_dict["Crash: " + crash] = {
             "found_time": crashes[crash]["found_time"],
             "parents": crashes[crash]["parents"],
             "time_delta": crashes[crash]["time_delta"],
+            "mutation": crashes[crash]["mutation"],
             "mutation_delta": crashes[crash]["mutation_delta"],
-            "new_coverage": "N/A"
+            "coverage": ""
         }
 
-    json_file = open(os.path.join(indir, "metadata.json"), "w")
+    json_file = open(os.path.join(outdir, "metadata.json"), "w")
     json.dump(metadata_dict, json_file)
 
+    ## Save mutation delta to a file
+    mut_outdir = os.path.join(outdir, "mutation_delta")
+    os.mkdir(mut_outdir)
+    for seed in seeds:
+        f = open(os.path.join(mut_outdir, str(seed) + ".txt"), "w")
+        f.write(seeds[seed]["mutation_delta"])
+        f.close()
+    for crash in crashes:
+        f = open(os.path.join(mut_outdir, "Crash: " + crash+ ".txt"), "w")
+        f.write(crashes[crash]["mutation_delta"])
+        f.close()
 
-    
-
-
+def export_outdir(outdir):
+    export_dir = "/var/www/html/goodtaeeun/genevis/temp"
+    if os.path.exists(export_dir):
+        shutil.rmtree(export_dir)
+    shutil.copytree(outdir, export_dir)
 
 def main():
-    if len(sys.argv) != 3:
-        print("Usage: %s <input dir> <target>" % sys.argv[0])
+    if len(sys.argv) != 2:
+        print("Usage: %s <input dir>" % sys.argv[0])
         exit(1)
     indir = sys.argv[1]
-    target = sys.argv[2]
+    target = os.path.basename(indir).split("-iter")[0]
 
     # Read and parse seeds
     read_and_parse_seeds(indir)
@@ -261,8 +378,17 @@ def main():
     calculate_mutation_delta(indir)
 
     calculate_coverage(indir)
+    
+    outdir = generate_vis_dir(indir)
+    generate_json(outdir)
+    export_outdir(outdir)
 
-    generate_json(indir)
+    # just for now
+    tmpdir = os.path.join(BASE_DIR, "output", "tmp")
+    if os.path.exists(tmpdir):
+        shutil.rmtree(tmpdir)
+    shutil.copytree(outdir, tmpdir)
+
 
 if __name__ == '__main__':
     main()

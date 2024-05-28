@@ -1,0 +1,187 @@
+/* */
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.searchform {
+  overflow: auto;
+  flex: 1;
+}
+
+.searchform__result {
+  position: absolute;
+  width: 50%;
+  z-index: 1;
+}
+
+.searchform__result > li {
+  overflow: hidden;
+  border: none;
+  cursor: pointer;
+}
+
+.searchform__result > li.active {
+  color: var(--dark);
+  background-color: var(--yellow);
+}
+
+.searchform__result > li:hover {
+  background-color: var(--yellow);
+}
+
+.canvas {
+  flex: 1;
+}
+
+.separator {
+  display: none;
+}
+
+.infobox {
+  position: absoulte;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  transition: 0.5s;
+  padding: 0px;
+  display: none;
+}
+
+.infobox__close {
+  padding-top: 10px;
+  text-align: center;
+}
+
+@media (min-width: 768px) {
+  .separator {
+    display: initial;
+    flex-basis: 4px;
+    background-color: darkgrey;
+    cursor: col-resize;
+  }
+
+  .infobox {
+    display: initial;
+    height: 100%;
+    flex-basis: 400px;
+    overflow-x: hidden;
+    transition: 0.5s;
+    padding: 0px;
+  }
+
+  .infobox__close {
+    display: none;
+  }
+}
+
+.infobox__header {
+  background-color: lightgrey;
+  padding: 5px;
+}
+
+.infobox__icon,
+.infobox__icon:active,
+.infobox__icon:hover,
+.infobox__icon:visited {
+  color: var(--secondary);
+}
+
+.footer {
+  background-color: var(--light);
+}
+
+.node {
+  cursor: pointer;
+}
+
+.node-blackbox {
+  fill: #111111;
+  fill-opacity: 0.9;
+  stroke: var(--dark);
+  stroke-width: 3px;
+}
+
+.node-whitebox {
+  fill: #fefefe;
+  stroke: var(--dark);
+  stroke-width: 1px;
+}
+
+.node-greybox {
+  fill: #999999;
+  stroke: var(--gray);
+  stroke-width: 3px;
+}
+
+.node-found {
+  fill: var(--red) !important;
+}
+
+.node-selected {
+  fill: var(--green) !important;
+  stroke: var(--green) !important;
+}
+
+.nodetext {
+  font: 9px sans-serif;
+  font-weight: bold;
+  text-anchor: middle;
+  cursor: pointer;
+}
+
+.nodetext-blackbox {
+  fill: var(--white);
+}
+
+.link {
+  fill: none;
+  stroke: var(--gray);
+  stroke-width: 2px;
+}
+
+.stats-body__filter {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: 2px solid var(--gray);
+  border-radius: 15px;
+  outline: 0;
+}
+
+.modal.fade {
+  overflow: hidden;
+}
+
+.modal-content .modal-body {
+  height: 80vh;
+  overflow-y: scroll;
+}
+
+.accordion .card {
+  border: 0px;
+}
+
+.card .card-header {
+  padding: 5px;
+  border: 0px;
+  cursor: pointer;
+}
+
+.modal-body .accordion {
+  height: 200px;
+  overflow-y: scroll;
+}
+
+.space-top {
+  margin-top: 15px;
+}

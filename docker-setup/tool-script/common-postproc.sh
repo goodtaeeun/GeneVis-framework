@@ -44,10 +44,14 @@ cp -f /benchmark/bin/Logger/$1 ./$1
 mkdir output/coverage
 for seed in $SEED_LIST; do
     if [[ $3 == "stdin" ]]; then
-        cat output/queue/$seed | timeout -k 30 15 ./$1 $2 | grep "Line : " > output/coverage/$seed
+        cat output/queue/$seed | timeout -k 30 15 ./$1 $2 > log  2>&1
+        grep "\[FUNCTION\]" log | head -n 1 >> output/coverage/$seed
+        grep "\[LINE\]" log | head -n 1 >> output/coverage/$seed
     elif [[ $3 == "file" ]]; then
         cp -f output/queue/$seed ./@@
-        timeout -k 30 15 ./$1 $2 | grep "Line : " > output/coverage/$seed
+        timeout -k 30 15 ./$1 $2 > log  2>&1
+        grep "\[FUNCTION\]" log | head -n 1 >> output/coverage/$seed
+        grep "\[LINE\]" log | head -n 1 >> output/coverage/$seed
     fi
 done
 
