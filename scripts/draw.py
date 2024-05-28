@@ -140,20 +140,6 @@ def format_hexdump(hex_str, width=16):
         hex_lines.append(hex_chunk)
     return hex_lines
 
-# def format_diff(diff):
-#     formatted_lines = []
-#     for line in diff:
-#         if line.startswith('---') or line.startswith('+++'):
-#             formatted_lines.append(line)
-#         elif line.startswith('@@'):
-#             formatted_lines.append(line)
-#         else:
-#             # For context and change lines, format hex pairs with spaces for readability
-#             prefix = line[0]
-#             hex_pairs = ' '.join(line[1:][i:i+2] for i in range(0, len(line[1:]), 2))
-#             formatted_lines.append(f'{prefix} {hex_pairs}')
-#     return '\n'.join(formatted_lines)
-
 def format_diff(diff):
     formatted_lines = []
     current_addition = []
@@ -222,9 +208,6 @@ def calculate_mutation_delta(indir):
         )
         
         formatted_diff = format_diff(diff)
-        print("====================================")
-        print(seed)
-        print(formatted_diff)
         seeds[seed]["mutation_delta"] = formatted_diff
 
     for crash in crashes:
